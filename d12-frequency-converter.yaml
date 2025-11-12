@@ -1,0 +1,410 @@
+substitutions:
+  device_name: d12-frequency-converter
+  friendly_name: "D12 Frequency Converter"
+  modbus_address: "1"  # Change to match your device address (P6.00)
+
+esphome:
+  name: ${device_name}
+  platform: ESP8266
+  board: d1_mini
+
+# Enable logging
+logger:
+  level: DEBUG
+  baud_rate: 0  # Disable UART logging to avoid conflicts with Modbus
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot
+  ap:
+    ssid: "${device_name} Fallback"
+    password: !secret ap_password
+
+captive_portal:
+
+# Configure UART for RS485
+uart:
+  id: mod_bus
+  tx_pin: GPIO1  # TX pin (D10 on D1 mini)
+  rx_pin: GPIO3  # RX pin (D9 on D1 mini)
+  baud_rate: 19200
+  stop_bits: 1
+  parity: NONE
+  # For RS485 adapter, connect:
+  # - TX to DI
+  # - RX to RO
+  # - DE/RE to GPIO5 (D1) for flow control (optional)
+
+# Modbus Controller
+modbus:
+  id: modbus1
+  uart_id: mod_bus
+  flow_control_pin: GPIO5  # Optional: DE/RE control pin for RS485 adapter
+
+modbus_controller:
+  - id: d12_vfd
+    address: ${modbus_address}
+    modbus_id: modbus1
+    setup_priority: -10
+    update_interval: 2s
+
+# ===== SENSORS (Read-only monitoring) =====
+sensor:
+  # Output Frequency (Hz)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Output Frequency"
+    id: output_frequency
+    register_type: holding
+    address: 0x2103
+    unit_of_measurement: "Hz"
+    device_class: frequency
+    state_class: measurement
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+
+  # Set Frequency (Hz)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Set Frequency"
+    id: set_frequency
+    register_type: holding
+    address: 0x2102
+    unit_of_measurement: "Hz"
+    device_class: frequency
+    state_class: measurement
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+
+  # Output Current (A)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Output Current"
+    id: output_current
+    register_type: holding
+    address: 0x2104
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+
+  # Bus Voltage (V)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Bus Voltage"
+    id: bus_voltage
+    register_type: holding
+    address: 0x2105
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 0
+
+  # Output Voltage (V)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Output Voltage"
+    id: output_voltage
+    register_type: holding
+    address: 0x2106
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 0
+
+  # Module Temperature (°C)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Temperature"
+    id: module_temperature
+    register_type: holding
+    address: 0x210D
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.1
+
+  # PID Feedback Value
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} PID Feedback"
+    id: pid_feedback
+    register_type: holding
+    address: 0x210E
+    state_class: measurement
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+
+  # PID Setpoint
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} PID Setpoint"
+    id: pid_setpoint
+    register_type: holding
+    address: 0x210F
+    state_class: measurement
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01
+
+  # Status Word (raw for debugging)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Status Word"
+    id: status_word
+    register_type: holding
+    address: 0x2101
+    internal: true
+
+  # Power Calculation (approximation: V * I * sqrt(3) for 3-phase)
+  - platform: template
+    name: "${friendly_name} Estimated Power"
+    id: estimated_power
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+    lambda: |-
+      return id(output_voltage).state * id(output_current).state * 1.732;
+    update_interval: 2s
+
+  # WiFi Signal Strength
+  - platform: wifi_signal
+    name: "${friendly_name} WiFi Signal"
+    update_interval: 60s
+
+# ===== BINARY SENSORS (Status indicators) =====
+binary_sensor:
+  # Running Status (BIT0 of status word)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Running"
+    id: is_running
+    register_type: holding
+    address: 0x2101
+    bitmask: 0x0001
+    device_class: running
+
+  # Stop Status (BIT1)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Stopped"
+    id: is_stopped
+    register_type: holding
+    address: 0x2101
+    bitmask: 0x0002
+
+  # Jog Status (BIT2)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Jogging"
+    id: is_jogging
+    register_type: holding
+    address: 0x2101
+    bitmask: 0x0004
+
+  # Forward Direction (BIT3)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Forward Direction"
+    id: is_forward
+    register_type: holding
+    address: 0x2101
+    bitmask: 0x0008
+
+  # Reverse Direction (BIT4)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Reverse Direction"
+    id: is_reverse
+    register_type: holding
+    address: 0x2101
+    bitmask: 0x0010
+
+  # Overload Pre-alarm (BIT10)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Overload Warning"
+    id: overload_warning
+    register_type: holding
+    address: 0x2101
+    bitmask: 0x0400
+    device_class: problem
+
+  # Status
+  - platform: status
+    name: "${friendly_name} Status"
+
+# ===== NUMBERS (Control inputs) =====
+number:
+  # Frequency Setpoint Control (-100.00% to 100.00% of max frequency)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Frequency Setpoint"
+    id: frequency_setpoint
+    register_type: holding
+    address: 0x2001
+    min_value: -100
+    max_value: 100
+    step: 0.1
+    unit_of_measurement: "%"
+    mode: slider
+    multiply: 100
+    use_write_multiple: false
+
+# ===== SWITCHES (Control commands) =====
+switch:
+  # Forward Run
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Run Forward"
+    id: run_forward
+    register_type: holding
+    address: 0x2000
+    bitmask: 1
+    icon: mdi:play
+    write_lambda: |-
+      return x ? 0x0012 : 0x0001;  // 0x0012 = Forward, 0x0001 = Stop
+
+  # Reverse Run
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Run Reverse"
+    id: run_reverse
+    register_type: holding
+    address: 0x2000
+    bitmask: 1
+    icon: mdi:play-reverse
+    write_lambda: |-
+      return x ? 0x0022 : 0x0001;  // 0x0022 = Reverse, 0x0001 = Stop
+
+# ===== BUTTONS (Single-action commands) =====
+button:
+  # Stop Command
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Stop"
+    id: stop_button
+    register_type: holding
+    address: 0x2000
+    command: 0x0001
+    icon: mdi:stop
+
+  # Forward Jog
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Jog Forward"
+    id: jog_forward_button
+    register_type: holding
+    address: 0x2000
+    command: 0x0013
+    icon: mdi:debug-step-over
+
+  # Reverse Jog
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Jog Reverse"
+    id: jog_reverse_button
+    register_type: holding
+    address: 0x2000
+    command: 0x0023
+    icon: mdi:debug-step-into
+
+  # Fault Reset
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Fault Reset"
+    id: fault_reset_button
+    register_type: holding
+    address: 0x2002
+    command: 0x0002
+    icon: mdi:restore-alert
+
+  # Restart ESP
+  - platform: restart
+    name: "${friendly_name} Restart"
+
+# ===== TEXT SENSORS (Status information) =====
+text_sensor:
+  # Operation Status
+  - platform: template
+    name: "${friendly_name} Operation Status"
+    id: operation_status
+    icon: mdi:information
+    update_interval: 2s
+    lambda: |-
+      if (id(is_running).state) {
+        if (id(is_forward).state) return {"Running Forward"};
+        if (id(is_reverse).state) return {"Running Reverse"};
+        return {"Running"};
+      } else if (id(is_jogging).state) {
+        return {"Jogging"};
+      } else if (id(is_stopped).state) {
+        return {"Stopped"};
+      }
+      return {"Unknown"};
+
+  # WiFi Info
+  - platform: wifi_info
+    ip_address:
+      name: "${friendly_name} IP Address"
+    ssid:
+      name: "${friendly_name} Connected SSID"
+
+# ===== SELECT (Parameter configuration) =====
+select:
+  # Run Command Channel (P0.02)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Run Command Source"
+    address: 0x0002  # P0.02
+    value_type: U_WORD
+    optionsmap:
+      "Panel": 0
+      "Terminal": 1
+      "Communication": 2
+
+  # Frequency Source Selection (P0.03)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Frequency Source"
+    address: 0x0003  # P0.03
+    value_type: U_WORD
+    optionsmap:
+      "Panel Potentiometer": 0
+      "Digital Reference 1": 1
+      "Digital Reference 2": 2
+      "Analog AVI": 3
+      "Combination": 4
+      "Analog ACI": 5
+      "Communication": 6
+      "Pulse": 7
+
+# ===== CONFIGURATION PARAMETERS =====
+# You can add more parameter controls as needed:
+
+# Example: Maximum Output Frequency (P0.04)
+#  - platform: modbus_controller
+#    modbus_controller_id: d12_vfd
+#    name: "${friendly_name} Max Frequency"
+#    address: 0x0004
+#    value_type: U_WORD
+#    unit_of_measurement: "Hz"
+#    multiply: 0.1
