@@ -140,7 +140,7 @@ sensor:
     filters:
       - multiply: 0.1
 
-  # PID Feedback Value
+  # PID Feedback Value (Raw percentage 0-100%)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
     name: "${friendly_name} PID Feedback"
@@ -149,10 +149,11 @@ sensor:
     address: 0x210E
     state_class: measurement
     accuracy_decimals: 2
+    internal: true  # Hide raw value, use pressure sensor instead
     filters:
       - multiply: 0.01
 
-  # PID Setpoint
+  # PID Setpoint (Raw percentage 0-100%)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
     name: "${friendly_name} PID Setpoint"
@@ -163,6 +164,54 @@ sensor:
     accuracy_decimals: 2
     filters:
       - multiply: 0.01
+
+  # Pressure Sensor (4-20mA current input via ACI terminal)
+  # IMPORTANT: Configure D12 VFD parameters first:
+  #   P2.04 = 4.00 (ACI input lower limit, 4mA)
+  #   P2.05 = 20.00 (ACI input upper limit, 20mA)
+  #   P2.06 = 0.0% (ACI lower limit corresponding setting)
+  #   P2.07 = 100.0% (ACI upper limit corresponding setting)
+  #   P3.00 hundreds digit = 1 (PID feedback input channel = ACI)
+  #   P3.18 = your sensor's max range in MPa (e.g., 1.00 for 0-1 MPa sensor)
+  - platform: template
+    name: "${friendly_name} Pressure"
+    id: pressure_sensor
+    unit_of_measurement: "bar"
+    device_class: pressure
+    state_class: measurement
+    accuracy_decimals: 2
+    icon: mdi:gauge
+    lambda: |-
+      // Convert PID feedback percentage to pressure
+      // Adjust the multiplier (10.0) to match your sensor range
+      // Example: For 0-10 bar sensor, use 10.0
+      //          For 0-16 bar sensor, use 16.0
+      //          For 0-1 MPa sensor (=10 bar), use 10.0
+      if (id(pid_feedback).state >= 0) {
+        return id(pid_feedback).state * 10.0;  // Change 10.0 to your sensor's max pressure
+      } else {
+        return 0.0;
+      }
+    update_interval: 2s
+
+  # Pressure Setpoint (converted from PID setpoint)
+  - platform: template
+    name: "${friendly_name} Pressure Setpoint"
+    id: pressure_setpoint
+    unit_of_measurement: "bar"
+    device_class: pressure
+    state_class: measurement
+    accuracy_decimals: 2
+    icon: mdi:gauge-empty
+    lambda: |-
+      // Convert PID setpoint percentage to pressure
+      // Must match the same multiplier as pressure_sensor above
+      if (id(pid_setpoint).state >= 0) {
+        return id(pid_setpoint).state * 10.0;  // Change 10.0 to your sensor's max pressure
+      } else {
+        return 0.0;
+      }
+    update_interval: 2s
 
   # Status Word (raw for debugging)
   - platform: modbus_controller

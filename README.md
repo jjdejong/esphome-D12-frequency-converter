@@ -119,8 +119,10 @@ esphome run d12-frequency-converter.yaml --device d12-frequency-converter.local
 - **Bus Voltage** - DC bus voltage (V)
 - **Output Voltage** - AC output voltage (V)
 - **Temperature** - Inverter module temperature (°C)
-- **PID Feedback** - PID feedback value
-- **PID Setpoint** - PID target value
+- **Pressure** - Current pressure from 4-20mA sensor (bar)
+- **Pressure Setpoint** - Target pressure setpoint (bar)
+- **PID Feedback** - PID feedback value (raw %)
+- **PID Setpoint** - PID target value (raw %)
 - **Estimated Power** - Calculated power output (W)
 
 #### Binary Sensors (Status)
@@ -182,10 +184,88 @@ automation:
           message: "VFD temperature too high! Stopped for safety."
 ```
 
+## Pressure Sensor Configuration (4-20mA Current Input)
+
+The D12 supports a 4-20mA pressure sensor via the **ACI** analog current input terminal.
+
+### Hardware Connection
+
+From the D12 wiring diagram (page 4):
+
+| Component | Terminal | Notes |
+|-----------|----------|-------|
+| Pressure sensor + | ACI | 4-20mA signal |
+| Pressure sensor - | GND | Common ground |
+| Sensor power | External 24V | Do NOT power from D12 |
+
+**Important**: Most 4-20mA sensors require external 24V power supply. The D12's auxiliary power outputs (+10V, +12V) are insufficient for powering the Wemos AND sensors.
+
+### D12 VFD Parameter Configuration
+
+Configure these parameters on the D12 panel or via Modbus:
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| P2.04 | 4.00 | ACI input lower limit (4mA) |
+| P2.05 | 20.00 | ACI input upper limit (20mA) |
+| P2.06 | 0.0% | ACI lower limit = 0% |
+| P2.07 | 100.0% | ACI upper limit = 100% |
+| P3.00 | x1xx | Set hundreds digit to 1 (PID feedback = ACI) |
+| P3.18 | 10.00 | Sensor range in MPa (e.g., 1.00 = 10 bar) |
+
+### ESPHome Configuration
+
+In `d12-frequency-converter.yaml`, update the pressure sensor multiplier to match your sensor:
+
+```yaml
+lambda: |-
+  if (id(pid_feedback).state >= 0) {
+    return id(pid_feedback).state * 10.0;  // Change 10.0 to your max pressure
+  } else {
+    return 0.0;
+  }
+```
+
+**Examples:**
+- 0-10 bar sensor: use `10.0`
+- 0-16 bar sensor: use `16.0`
+- 0-6 bar sensor: use `6.0`
+- 0-1 MPa sensor: use `10.0` (1 MPa = 10 bar)
+
+### Testing the Pressure Sensor
+
+1. Connect sensor to ACI/GND terminals
+2. Apply 24V power to sensor
+3. Configure D12 parameters as above
+4. Upload ESPHome configuration
+5. Check Home Assistant for `sensor.d12_frequency_converter_pressure`
+6. At 4mA: should read 0.0 bar
+7. At 20mA: should read max pressure (e.g., 10.0 bar)
+8. At 12mA (middle): should read half max (e.g., 5.0 bar)
+
+### Example Home Assistant Automation
+
+```yaml
+automation:
+  - alias: "High Pressure Alarm"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.d12_frequency_converter_pressure
+        above: 8.5
+    action:
+      - service: switch.turn_off
+        target:
+          entity_id: switch.d12_frequency_converter_run_forward
+      - service: notify.mobile_app
+        data:
+          message: "Pressure too high! System stopped at {{ states('sensor.d12_frequency_converter_pressure') }} bar"
+```
+
 ## Features
 
 ### Monitoring
 - Real-time frequency, voltage, current monitoring
+- Pressure monitoring via 4-20mA sensor (optional)
 - Temperature monitoring with overheating protection
 - Status indicators (running, direction, warnings)
 - Power estimation
