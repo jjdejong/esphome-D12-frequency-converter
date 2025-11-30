@@ -331,8 +331,13 @@ switch:
     address: 0x2000
     bitmask: 1
     icon: mdi:play
+    # 0x0012 = Forward, 0x0001 = Stop
     write_lambda: |-
-      return x ? 0x0012 : 0x0001;  // 0x0012 = Forward, 0x0001 = Stop
+      if (x) {
+        return 0x0012;
+      } else {
+        return 0x0001;
+      }
 
   # Reverse Run
   - platform: modbus_controller
@@ -343,50 +348,103 @@ switch:
     address: 0x2000
     bitmask: 1
     icon: mdi:play-reverse
+    # 0x0022 = Reverse, 0x0001 = Stop
     write_lambda: |-
-      return x ? 0x0022 : 0x0001;  // 0x0022 = Reverse, 0x0001 = Stop
+      if (x) {
+        return 0x0022;
+      } else {
+        return 0x0001;
+      }
+
+  # Stop Command (helper switch)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Stop Switch"
+    id: vfd_stop_switch
+    internal: true
+    register_type: holding
+    address: 0x2000
+    # 0x0001 = Stop
+    write_lambda: |-
+      return 0x0001;
+
+  # Forward Jog (helper switch)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Jog Forward Switch"
+    id: vfd_jog_forward_switch
+    internal: true
+    register_type: holding
+    address: 0x2000
+    # 0x0013 = Forward Jog
+    write_lambda: |-
+      return 0x0013;
+
+  # Reverse Jog (helper switch)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Jog Reverse Switch"
+    id: vfd_jog_reverse_switch
+    internal: true
+    register_type: holding
+    address: 0x2000
+    # 0x0023 = Reverse Jog
+    write_lambda: |-
+      return 0x0023;
+
+  # Fault Reset (helper switch)
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "${friendly_name} Fault Reset Switch"
+    id: vfd_fault_reset_switch
+    internal: true
+    register_type: holding
+    address: 0x2002
+    # 0x0002 = Fault Reset
+    write_lambda: |-
+      return 0x0002;
 
 # ===== BUTTONS (Single-action commands) =====
 button:
   # Stop Command
-  - platform: modbus_controller
-    modbus_controller_id: d12_vfd
+  - platform: template
     name: "${friendly_name} Stop"
-    id: stop_button
-    register_type: holding
-    address: 0x2000
-    command: 0x0001
     icon: mdi:stop
+    on_press:
+      then:
+        - switch.turn_on: vfd_stop_switch
+        - delay: 50ms
+        - switch.turn_off: vfd_stop_switch
 
   # Forward Jog
-  - platform: modbus_controller
-    modbus_controller_id: d12_vfd
+  - platform: template
     name: "${friendly_name} Jog Forward"
-    id: jog_forward_button
-    register_type: holding
-    address: 0x2000
-    command: 0x0013
     icon: mdi:debug-step-over
+    on_press:
+      then:
+        - switch.turn_on: vfd_jog_forward_switch
+        - delay: 50ms
+        - switch.turn_off: vfd_jog_forward_switch
 
   # Reverse Jog
-  - platform: modbus_controller
-    modbus_controller_id: d12_vfd
+  - platform: template
     name: "${friendly_name} Jog Reverse"
-    id: jog_reverse_button
-    register_type: holding
-    address: 0x2000
-    command: 0x0023
     icon: mdi:debug-step-into
+    on_press:
+      then:
+        - switch.turn_on: vfd_jog_reverse_switch
+        - delay: 50ms
+        - switch.turn_off: vfd_jog_reverse_switch
 
   # Fault Reset
-  - platform: modbus_controller
-    modbus_controller_id: d12_vfd
+  - platform: template
     name: "${friendly_name} Fault Reset"
-    id: fault_reset_button
-    register_type: holding
-    address: 0x2002
-    command: 0x0002
     icon: mdi:restore-alert
+    on_press:
+      then:
+        - switch.turn_on: vfd_fault_reset_switch
+        - delay: 50ms
+        - switch.turn_off: vfd_fault_reset_switch
 
   # Restart ESP
   - platform: restart
