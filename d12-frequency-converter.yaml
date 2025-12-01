@@ -1,3 +1,4 @@
+# Version 1.2
 substitutions:
   device_name: d12-frequency-converter
   friendly_name: "D12 Frequency Converter"
@@ -65,7 +66,7 @@ sensor:
   # Output Frequency (Hz)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Output Frequency"
+    name: "Output Frequency"
     id: output_frequency
     register_type: holding
     address: 0x2103
@@ -79,7 +80,7 @@ sensor:
   # Set Frequency (Hz)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Set Frequency"
+    name: "Set Frequency"
     id: set_frequency
     register_type: holding
     address: 0x2102
@@ -93,7 +94,7 @@ sensor:
   # Output Current (A)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Output Current"
+    name: "Output Current"
     id: output_current
     register_type: holding
     address: 0x2104
@@ -107,7 +108,7 @@ sensor:
   # Bus Voltage (V)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Bus Voltage"
+    name: "Bus Voltage"
     id: bus_voltage
     register_type: holding
     address: 0x2105
@@ -119,7 +120,7 @@ sensor:
   # Output Voltage (V)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Output Voltage"
+    name: "Output Voltage"
     id: output_voltage
     register_type: holding
     address: 0x2106
@@ -131,7 +132,7 @@ sensor:
   # Module Temperature (°C)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Temperature"
+    name: "Temperature"
     id: module_temperature
     register_type: holding
     address: 0x210D
@@ -145,7 +146,7 @@ sensor:
   # PID Feedback Value (Raw percentage 0-100%)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} PID Feedback"
+    name: "PID Feedback"
     id: pid_feedback
     register_type: holding
     address: 0x210E
@@ -158,7 +159,7 @@ sensor:
   # PID Setpoint (Raw percentage 0-100%)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} PID Setpoint"
+    name: "PID Setpoint"
     id: pid_setpoint
     register_type: holding
     address: 0x210F
@@ -176,7 +177,7 @@ sensor:
   #   P3.00 hundreds digit = 1 (PID feedback input channel = ACI)
   #   P3.18 = your sensor's max range in MPa (e.g., 1.00 for 0-1 MPa sensor)
   - platform: template
-    name: "${friendly_name} Pressure"
+    name: "Pressure"
     id: pressure_sensor
     unit_of_measurement: "bar"
     device_class: pressure
@@ -198,7 +199,7 @@ sensor:
 
   # Pressure Setpoint (converted from PID setpoint)
   - platform: template
-    name: "${friendly_name} Pressure Setpoint"
+    name: "Pressure Setpoint"
     id: pressure_setpoint
     unit_of_measurement: "bar"
     device_class: pressure
@@ -218,7 +219,7 @@ sensor:
   # Status Word (raw for debugging)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Status Word"
+    name: "Status Word"
     id: status_word
     register_type: holding
     address: 0x2101
@@ -226,7 +227,7 @@ sensor:
 
   # Power Calculation (approximation: V * I * sqrt(3) for 3-phase)
   - platform: template
-    name: "${friendly_name} Estimated Power"
+    name: "Estimated Power"
     id: estimated_power
     unit_of_measurement: "W"
     device_class: power
@@ -238,77 +239,65 @@ sensor:
 
   # WiFi Signal Strength
   - platform: wifi_signal
-    name: "${friendly_name} WiFi Signal"
+    name: "WiFi Signal"
     update_interval: 60s
 
 # ===== BINARY SENSORS (Status indicators) =====
 binary_sensor:
   # Running Status (BIT0 of status word)
-  - platform: modbus_controller
-    modbus_controller_id: d12_vfd
-    name: "${friendly_name} Running"
+  - platform: template
+    name: "Running"
     id: is_running
-    register_type: holding
-    address: 0x2101
-    bitmask: 0x0001
     device_class: running
+    lambda: |-
+      return ((int)id(status_word).state & 0x0001) != 0;
 
   # Stop Status (BIT1)
-  - platform: modbus_controller
-    modbus_controller_id: d12_vfd
-    name: "${friendly_name} Stopped"
+  - platform: template
+    name: "Stopped"
     id: is_stopped
-    register_type: holding
-    address: 0x2101
-    bitmask: 0x0002
+    lambda: |-
+      return ((int)id(status_word).state & 0x0002) != 0;
 
   # Jog Status (BIT2)
-  - platform: modbus_controller
-    modbus_controller_id: d12_vfd
-    name: "${friendly_name} Jogging"
+  - platform: template
+    name: "Jogging"
     id: is_jogging
-    register_type: holding
-    address: 0x2101
-    bitmask: 0x0004
+    lambda: |-
+      return ((int)id(status_word).state & 0x0004) != 0;
 
   # Forward Direction (BIT3)
-  - platform: modbus_controller
-    modbus_controller_id: d12_vfd
-    name: "${friendly_name} Forward Direction"
+  - platform: template
+    name: "Forward Direction"
     id: is_forward
-    register_type: holding
-    address: 0x2101
-    bitmask: 0x0008
+    lambda: |-
+      return ((int)id(status_word).state & 0x0008) != 0;
 
   # Reverse Direction (BIT4)
-  - platform: modbus_controller
-    modbus_controller_id: d12_vfd
-    name: "${friendly_name} Reverse Direction"
+  - platform: template
+    name: "Reverse Direction"
     id: is_reverse
-    register_type: holding
-    address: 0x2101
-    bitmask: 0x0010
+    lambda: |-
+      return ((int)id(status_word).state & 0x0010) != 0;
 
   # Overload Pre-alarm (BIT10)
-  - platform: modbus_controller
-    modbus_controller_id: d12_vfd
-    name: "${friendly_name} Overload Warning"
+  - platform: template
+    name: "Overload Warning"
     id: overload_warning
-    register_type: holding
-    address: 0x2101
-    bitmask: 0x0400
     device_class: problem
+    lambda: |-
+      return ((int)id(status_word).state & 0x0400) != 0;
 
   # Status
   - platform: status
-    name: "${friendly_name} Status"
+    name: "Status"
 
 # ===== NUMBERS (Control inputs) =====
 number:
   # Frequency Setpoint Control (-100.00% to 100.00% of max frequency)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Frequency Setpoint"
+    name: "Frequency Setpoint"
     id: frequency_setpoint
     register_type: holding
     address: 0x2001
@@ -325,7 +314,7 @@ switch:
   # Forward Run
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Run Forward"
+    name: "Run Forward"
     id: run_forward
     register_type: holding
     address: 0x2000
@@ -342,7 +331,7 @@ switch:
   # Reverse Run
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Run Reverse"
+    name: "Run Reverse"
     id: run_reverse
     register_type: holding
     address: 0x2000
@@ -359,7 +348,7 @@ switch:
   # Stop Command (helper switch)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Stop Switch"
+    name: "Stop Switch"
     id: vfd_stop_switch
     internal: true
     register_type: holding
@@ -371,7 +360,7 @@ switch:
   # Forward Jog (helper switch)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Jog Forward Switch"
+    name: "Jog Forward Switch"
     id: vfd_jog_forward_switch
     internal: true
     register_type: holding
@@ -383,7 +372,7 @@ switch:
   # Reverse Jog (helper switch)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Jog Reverse Switch"
+    name: "Jog Reverse Switch"
     id: vfd_jog_reverse_switch
     internal: true
     register_type: holding
@@ -395,7 +384,7 @@ switch:
   # Fault Reset (helper switch)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Fault Reset Switch"
+    name: "Fault Reset Switch"
     id: vfd_fault_reset_switch
     internal: true
     register_type: holding
@@ -408,7 +397,7 @@ switch:
 button:
   # Stop Command
   - platform: template
-    name: "${friendly_name} Stop"
+    name: "Stop"
     icon: mdi:stop
     on_press:
       then:
@@ -418,7 +407,7 @@ button:
 
   # Forward Jog
   - platform: template
-    name: "${friendly_name} Jog Forward"
+    name: "Jog Forward"
     icon: mdi:debug-step-over
     on_press:
       then:
@@ -428,7 +417,7 @@ button:
 
   # Reverse Jog
   - platform: template
-    name: "${friendly_name} Jog Reverse"
+    name: "Jog Reverse"
     icon: mdi:debug-step-into
     on_press:
       then:
@@ -438,7 +427,7 @@ button:
 
   # Fault Reset
   - platform: template
-    name: "${friendly_name} Fault Reset"
+    name: "Fault Reset"
     icon: mdi:restore-alert
     on_press:
       then:
@@ -448,13 +437,13 @@ button:
 
   # Restart ESP
   - platform: restart
-    name: "${friendly_name} Restart"
+    name: "Restart"
 
 # ===== TEXT SENSORS (Status information) =====
 text_sensor:
   # Operation Status
   - platform: template
-    name: "${friendly_name} Operation Status"
+    name: "Operation Status"
     id: operation_status
     icon: mdi:information
     update_interval: 2s
@@ -473,16 +462,16 @@ text_sensor:
   # WiFi Info
   - platform: wifi_info
     ip_address:
-      name: "${friendly_name} IP Address"
+      name: "IP Address"
     ssid:
-      name: "${friendly_name} Connected SSID"
+      name: "Connected SSID"
 
 # ===== SELECT (Parameter configuration) =====
 select:
   # Run Command Channel (P0.02)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Run Command Source"
+    name: "Run Command Source"
     address: 0x0002  # P0.02
     value_type: U_WORD
     optionsmap:
@@ -493,7 +482,7 @@ select:
   # Frequency Source Selection (P0.03)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
-    name: "${friendly_name} Frequency Source"
+    name: "Frequency Source"
     address: 0x0003  # P0.03
     value_type: U_WORD
     optionsmap:
