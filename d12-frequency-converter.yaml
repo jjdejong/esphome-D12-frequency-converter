@@ -224,6 +224,7 @@ sensor:
     register_type: holding
     address: 0x2101
     internal: true
+    skip_updates: 10
 
   # Power Calculation (approximation: V * I * sqrt(3) for 3-phase)
   - platform: template
@@ -234,6 +235,9 @@ sensor:
     state_class: measurement
     accuracy_decimals: 0
     lambda: |-
+      if (isnan(id(output_voltage).state) || isnan(id(output_current).state)) {
+        return 0.0;
+      }
       return id(output_voltage).state * id(output_current).state * 1.732;
     update_interval: 2s
 
@@ -318,7 +322,6 @@ switch:
     id: run_forward
     register_type: holding
     address: 0x2000
-    bitmask: 1
     icon: mdi:play
     # 0x0012 = Forward, 0x0001 = Stop
     write_lambda: |-
@@ -335,7 +338,6 @@ switch:
     id: run_reverse
     register_type: holding
     address: 0x2000
-    bitmask: 1
     icon: mdi:play-reverse
     # 0x0022 = Reverse, 0x0001 = Stop
     write_lambda: |-
