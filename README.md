@@ -2,40 +2,52 @@
 
 Complete ESPHome configuration for monitoring and controlling a D12 Series Frequency Converter (VFD) via RS485/Modbus RTU using a Wemos D1 Mini.
 
+> **Dual-mode pump control (PAC / irrigation):** an optional package adds an autonomous
+> variable-speed controller that **automatically detects** whether the heat pump or the
+> irrigation circuit is drawing (from the hydraulics alone) and switches between an
+> energy-economy fixed-frequency mode and PID pressure regulation with sleep.
+> See **[doc/DUAL-MODE.md](doc/DUAL-MODE.md)** for the full description, state machine and
+> use-case timing diagrams.
+
 ## Hardware Requirements
 
 1. **Wemos D1 Mini** (ESP8266)
-2. **RS485 to TTL Module** (e.g., MAX485, MAX3485)
+2. **RS485 to TTL Module** — *auto-direction* type (MAX485 + direction-control IC, 3.3 V / 5 V compatible, no DE/RE pin)
 3. **D12 Frequency Converter** with RS485 terminals
 4. Wiring cables
 
 ## Wiring Connections
 
-### RS485 Module to Wemos D1 Mini
+### RS485 Module (TTL side) to Wemos D1 Mini
+
+The auto-direction module exposes a 4-pin TTL header (no DE/RE). Cross TX↔RX:
 
 | RS485 Module | Wemos D1 Mini | Description |
 |--------------|---------------|-------------|
-| VCC          | 5V            | Power supply |
-| GND          | GND           | Ground |
-| DI (TXD)     | GPIO1 (TX)    | Transmit data |
-| RO (RXD)     | GPIO3 (RX)    | Receive data |
-| DE           | GPIO5 (D1)    | Driver Enable (optional) |
-| RE           | GPIO5 (D1)    | Receiver Enable (optional) |
+| VCC          | **3V3**       | Power — module is 3.3 V/5 V tolerant; use 3.3 V to match the ESP logic levels |
+| GND          | GND           | Common ground — this is the RS485 reference, do not omit |
+| TXD          | GPIO3 (RX)    | Module → ESP receive |
+| RXD          | GPIO1 (TX)    | ESP → module transmit |
 
-### RS485 Module to D12 Frequency Converter
+> **Auto-direction module:** there is no DE/RE wire, so the `flow_control_pin: GPIO5`
+> line in `d12-frequency-converter.yaml` is **unused and can be removed** (this frees
+> GPIO5). The module toggles the bus direction by itself.
+
+### RS485 Module (485 side) to D12 Frequency Converter
 
 From the D12 wiring diagram (page 4), connect to the RS485 terminals:
 
 | RS485 Module | D12 Terminal | Description |
 |--------------|--------------|-------------|
-| A (or +)     | 485+         | RS485 A line |
-| B (or -)     | 485-         | RS485 B line |
+| A+           | 485+         | RS485 A line |
+| B−           | 485-         | RS485 B line |
+| 接大地 (earth) | —          | Cable shield / protective earth — **leave unconnected** for a short indoor run; connect to earth only for long outdoor runs |
 
 **Important Notes:**
-- The D12 has J8 jumper for 485 terminal resistor selection (default disconnected)
-- For long cable runs or multiple devices, you may need to connect the 120Ω termination resistor
+- The 485 side has **no signal GND** — only the A/B pair (the ground reference is the TTL-side GND, shared ESP ↔ module)
+- The module has a built-in 120 Ω termination (jumper `R0`); leave it **open** for the short bus to the D12, the D12's J8 jumper too
 - Use twisted pair cable for RS485 connections
-- Maximum cable length: ~1000m (depending on baud rate)
+- Maximum cable length: ~1000 m (depending on baud rate)
 
 ## D12 VFD Configuration
 

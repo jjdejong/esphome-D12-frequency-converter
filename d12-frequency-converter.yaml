@@ -49,16 +49,16 @@ uart:
   baud_rate: 19200
   stop_bits: 1
   parity: NONE
-  # For RS485 adapter, connect:
-  # - TX to DI
-  # - RX to RO
-  # - DE/RE to GPIO5 (D1) for flow control (optional)
+  # Auto-direction RS485 module (3.3 V), TTL header crossed:
+  # - module RXD <- GPIO1 (ESP TX)
+  # - module TXD -> GPIO3 (ESP RX)
+  # - no DE/RE pin (the module handles bus direction)
 
 # Modbus Controller
 modbus:
   id: modbus1
   uart_id: mod_bus
-  flow_control_pin: GPIO5  # Optional: DE/RE control pin for RS485 adapter
+  # Auto-direction RS485 module (no DE/RE) → no flow_control_pin needed. GPIO5 is free.
 
 modbus_controller:
   - id: d12_vfd

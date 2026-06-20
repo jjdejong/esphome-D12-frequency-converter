@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 410" font-family="Segoe UI,Helvetica,Arial,sans-serif">
+<rect x="0" y="0" width="880" height="410" fill="#ffffff"/>
+<text x="100" y="28" font-size="17" font-weight="700" fill="#1f2933">Cas A — Cycle PAC (mode Auto) : détection → éco → remplissage → arrêt</text>
+<text x="20" y="64" font-size="11" fill="#52606d">État</text>
+<rect x="100.0" y="44" width="59.2" height="32" fill="#cbd2d9" stroke="#ffffff" stroke-width="1"/>
+<text x="129.6" y="64" font-size="11" font-weight="600" text-anchor="middle" fill="#1f2933">Repos</text>
+<rect x="159.2" y="44" width="74.0" height="32" fill="#fde68a" stroke="#ffffff" stroke-width="1"/>
+<text x="196.2" y="64" font-size="11" font-weight="600" text-anchor="middle" fill="#1f2933">Détection</text>
+<rect x="233.2" y="44" width="325.6" height="32" fill="#93c5fd" stroke="#ffffff" stroke-width="1"/>
+<text x="396.0" y="64" font-size="11" font-weight="600" text-anchor="middle" fill="#1f2933">PAC (éco)</text>
+<rect x="558.8" y="44" width="207.2" height="32" fill="#d8b4fe" stroke="#ffffff" stroke-width="1"/>
+<text x="662.4" y="64" font-size="11" font-weight="600" text-anchor="middle" fill="#1f2933">Anti-court-cycle</text>
+<rect x="766.0" y="44" width="74.0" height="32" fill="#cbd2d9" stroke="#ffffff" stroke-width="1"/>
+<text x="803.0" y="64" font-size="11" font-weight="600" text-anchor="middle" fill="#1f2933">Repos</text>
+<text x="20" y="96" font-size="11" fill="#2563eb" font-weight="600">Pression (bar)</text>
+<rect x="100" y="100" width="740" height="92" fill="none" stroke="#e4e7eb"/>
+<line x1="100" y1="192.0" x2="840" y2="192.0" stroke="#e4e7eb" stroke-width="0.6"/>
+<text x="94" y="195.0" font-size="9" text-anchor="end" fill="#52606d">0</text>
+<line x1="100" y1="161.3" x2="840" y2="161.3" stroke="#e4e7eb" stroke-width="0.6"/>
+<text x="94" y="164.3" font-size="9" text-anchor="end" fill="#52606d">1</text>
+<line x1="100" y1="130.7" x2="840" y2="130.7" stroke="#e4e7eb" stroke-width="0.6"/>
+<text x="94" y="133.7" font-size="9" text-anchor="end" fill="#52606d">2</text>
+<line x1="100" y1="100.0" x2="840" y2="100.0" stroke="#e4e7eb" stroke-width="0.6"/>
+<text x="94" y="103.0" font-size="9" text-anchor="end" fill="#52606d">3</text>
+<line x1="100" y1="146.0" x2="840" y2="146.0" stroke="#9aa5b1" stroke-width="1" stroke-dasharray="5 3"/>
+<text x="836" y="143.0" font-size="9" text-anchor="end" fill="#9aa5b1">P start</text>
+<line x1="100" y1="130.7" x2="840" y2="130.7" stroke="#9aa5b1" stroke-width="1" stroke-dasharray="5 3"/>
+<text x="836" y="127.7" font-size="9" text-anchor="end" fill="#9aa5b1">P stop</text>
+<polyline points="100.0,133.7 159.2,146.0 196.2,170.5 233.2,170.5 322.0,158.3 433.0,142.9 558.8,130.7 558.8,130.7 766.0,144.5 840.0,147.5" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<text x="20" y="240" font-size="11" fill="#d97706" font-weight="600">Fréquence (Hz)</text>
+<rect x="100" y="244" width="740" height="86" fill="none" stroke="#e4e7eb"/>
+<line x1="100" y1="330.0" x2="840" y2="330.0" stroke="#e4e7eb" stroke-width="0.6"/>
+<text x="94" y="333.0" font-size="9" text-anchor="end" fill="#52606d">0</text>
+<line x1="100" y1="287.0" x2="840" y2="287.0" stroke="#e4e7eb" stroke-width="0.6"/>
+<text x="94" y="290.0" font-size="9" text-anchor="end" fill="#52606d">25</text>
+<line x1="100" y1="244.0" x2="840" y2="244.0" stroke="#e4e7eb" stroke-width="0.6"/>
+<text x="94" y="247.0" font-size="9" text-anchor="end" fill="#52606d">50</text>
+<line x1="100" y1="264.6" x2="840" y2="264.6" stroke="#9aa5b1" stroke-width="1" stroke-dasharray="5 3"/>
+<text x="836" y="261.6" font-size="9" text-anchor="end" fill="#9aa5b1">F éco/sonde 38</text>
+<line x1="100" y1="292.2" x2="840" y2="292.2" stroke="#9aa5b1" stroke-width="1" stroke-dasharray="5 3"/>
+<text x="836" y="289.2" font-size="9" text-anchor="end" fill="#9aa5b1">F min 22</text>
+<polyline points="100.0,330.0 159.2,330.0 159.2,264.6 233.2,264.6 558.8,264.6 558.8,330.0 840.0,330.0" fill="none" stroke="#d97706" stroke-width="2.2"/>
+<text x="20" y="369" font-size="11" fill="#52606d">Pompe</text>
+<rect x="100" y="352" width="740" height="26" fill="none" stroke="#e4e7eb"/>
+<rect x="159.2" y="355" width="399.6" height="20" fill="#10b981" opacity="0.85"/>
+<line x1="100" y1="384" x2="840" y2="384" stroke="#52606d" stroke-width="1"/>
+<text x="840" y="400" font-size="10" text-anchor="end" fill="#52606d">temps →</text>
+<text x="196.2" y="208" font-size="9.5" text-anchor="middle" fill="#1f2933">P basse à 38 Hz</text>
+<text x="196.2" y="220" font-size="9.5" text-anchor="middle" fill="#1f2933">⇒ circuit mou = PAC</text>
+<text x="558.8" y="90" font-size="9.5" text-anchor="middle" fill="#1f2933">P≥P stop ⇒ arrêt</text>
+<text x="677.2" y="90" font-size="9.5" text-anchor="middle" fill="#1f2933">min. 90 s</text>
+</svg>
