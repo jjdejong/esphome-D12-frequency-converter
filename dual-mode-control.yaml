@@ -1,0 +1,388 @@
+# =====================================================================
+# Dual-mode control package — PAC (économie) / Arrosage (PID pression)
+# avec DÉTECTION HYDRAULIQUE automatique du mode.
+#
+# Intégration : dans d12-frequency-converter.yaml, ajouter :
+#   packages:
+#     dual_mode: !include dual-mode-control.yaml
+#
+# Pré-requis variateur D12 (à régler une fois) :
+#   P0.02 = 2 (Communication)  -> marche/arrêt piloté par ESPHome
+#   P0.03 = 6 (Communication)  -> fréquence pilotée par ESPHome
+#   P3.00 centaines = 1 (ACI)  -> canal feedback PID = ACI (capteur 4-20 mA)
+#   P2.04=4.00 / P2.05=20.00 / P2.06=0% / P2.07=100% / P3.18=plage capteur (bar)
+#
+# ⚠️ VÉRIFICATION AU BANC AVANT TOUT :
+#   Une fois P0.03=Communication, confirmer que le capteur "Pressure"
+#   (registre 0x210E / pid_feedback) suit toujours la pression réelle.
+#   Si 0x210E se fige, garder P3.00 centaines=ACI configuré ; si toujours
+#   figé, la détection hydraulique n'est pas possible via Modbus seul.
+#
+# ⚠️ SÉCURITÉ : le pressostat mécanique (seuils larges 0,1 / 5,0 bar) doit
+#   rester câblé sur l'entrée "External fault" du D12 (registre 0x2002 /
+#   borne défaut externe) AVANT d'activer l'auto-run. Filet indépendant
+#   de l'ESP (marche à sec + surpression).
+#
+# Réfs IDs externes (définis dans le fichier principal) :
+#   pressure_sensor, output_frequency, output_current,
+#   frequency_setpoint (number 0x2001, %), run_forward (switch 0x2000)
+# =====================================================================
+
+# ---------- Paramètres réglables depuis Home Assistant ----------
+number:
+  - platform: template
+    name: "DM P start (marche)"
+    id: num_p_start
+    unit_of_measurement: "bar"
+    optimistic: true
+    restore_value: true
+    initial_value: 1.5
+    min_value: 0.2
+    max_value: 4.0
+    step: 0.1
+    mode: box
+
+  - platform: template
+    name: "DM P stop (arrêt PAC)"
+    id: num_p_stop
+    unit_of_measurement: "bar"
+    optimistic: true
+    restore_value: true
+    initial_value: 2.0
+    min_value: 0.5
+    max_value: 4.5
+    step: 0.1
+    mode: box
+
+  - platform: template
+    name: "DM P consigne arrosage"
+    id: num_p_irrig
+    unit_of_measurement: "bar"
+    optimistic: true
+    restore_value: true
+    initial_value: 2.5
+    min_value: 1.0
+    max_value: 4.5
+    step: 0.1
+    mode: box
+
+  - platform: template
+    name: "DM F éco PAC"
+    id: num_f_eco
+    unit_of_measurement: "Hz"
+    optimistic: true
+    restore_value: true
+    initial_value: 38
+    min_value: 20
+    max_value: 50
+    step: 0.5
+    mode: box
+
+  - platform: template
+    name: "DM F sonde (détection)"
+    id: num_f_probe
+    unit_of_measurement: "Hz"
+    optimistic: true
+    restore_value: true
+    initial_value: 38
+    min_value: 20
+    max_value: 50
+    step: 0.5
+    mode: box
+
+  # ⚙️ À CALIBRER : pression atteinte à F_sonde séparant PAC (en dessous)
+  # d'arrosage (au-dessus). Mesurer P à F_sonde dans chaque mode réel.
+  - platform: template
+    name: "DM P seuil classification"
+    id: num_p_classify
+    unit_of_measurement: "bar"
+    optimistic: true
+    restore_value: true
+    initial_value: 1.4
+    min_value: 0.3
+    max_value: 4.0
+    step: 0.1
+    mode: box
+
+  # ⚙️ À CALIBRER : courant mini indiquant un vrai débit (vs refoulement mort)
+  - platform: template
+    name: "DM I mini débit"
+    id: num_i_min
+    unit_of_measurement: "A"
+    optimistic: true
+    restore_value: true
+    initial_value: 0.3
+    min_value: 0.0
+    max_value: 5.0
+    step: 0.1
+    mode: box
+
+  - platform: template
+    name: "DM F max"
+    id: num_f_max
+    unit_of_measurement: "Hz"
+    optimistic: true
+    restore_value: true
+    initial_value: 50
+    min_value: 30
+    max_value: 50
+    step: 1
+    mode: box
+
+  - platform: template
+    name: "DM F min (plancher sleep)"
+    id: num_f_min
+    unit_of_measurement: "Hz"
+    optimistic: true
+    restore_value: true
+    initial_value: 22
+    min_value: 10
+    max_value: 40
+    step: 0.5
+    mode: box
+
+  - platform: template
+    name: "DM PID Kp (Hz par bar)"
+    id: num_kp
+    optimistic: true
+    restore_value: true
+    initial_value: 8.0
+    min_value: 0.0
+    max_value: 40.0
+    step: 0.5
+    mode: box
+
+  - platform: template
+    name: "DM PID Ki (Hz par bar.s)"
+    id: num_ki
+    optimistic: true
+    restore_value: true
+    initial_value: 2.0
+    min_value: 0.0
+    max_value: 20.0
+    step: 0.5
+    mode: box
+
+# ---------- Sélecteur de mode ----------
+select:
+  - platform: template
+    name: "DM Mode"
+    id: mode_select
+    optimistic: true
+    restore_value: true
+    initial_option: "Off"   # défaut sûr : ne démarre rien tant que non passé en Auto
+    options:
+      - "Auto"
+      - "PAC"
+      - "Arrosage"
+      - "Off"
+
+# ---------- État interne ----------
+globals:
+  - id: ctrl_state          # 0 IDLE, 1 PROBE, 2 RUN_PAC, 3 RUN_IRRIG, 4 COOLDOWN
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: state_since_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: detected_mode       # 0 unknown, 1 PAC, 2 IRRIG
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: pid_integral
+    type: float
+    restore_value: false
+    initial_value: '22.0'
+  - id: last_freq_pct
+    type: float
+    restore_value: false
+    initial_value: '-1.0'
+  - id: sleep_since_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+
+# ---------- Écriture de fréquence en Hz (→ % de Fmax) ----------
+script:
+  - id: set_freq_hz
+    parameters:
+      hz: float
+    then:
+      - lambda: |-
+          float fmax = id(num_f_max).state;
+          if (isnan(fmax) || fmax < 1.0) fmax = 50.0;
+          float pct = hz / fmax * 100.0;
+          if (pct > 100.0) pct = 100.0;
+          if (pct < 0.0)   pct = 0.0;
+          // n'écrit que si la consigne change (limite le trafic Modbus)
+          if (fabs(pct - id(last_freq_pct)) >= 0.5) {
+            auto call = id(frequency_setpoint).make_call();
+            call.set_value(pct);
+            call.perform();
+            id(last_freq_pct) = pct;
+          }
+
+# ---------- Boucle de contrôle (1 s) ----------
+interval:
+  - interval: 1s
+    id: dual_mode_loop
+    then:
+      - lambda: |-
+          // ---- temporisations (ms) ----
+          const uint32_t PROBE_TIME  = 10000;   // durée de sonde / stabilisation
+          const uint32_t MIN_ON      = 60000;   // marche mini
+          const uint32_t MIN_OFF     = 90000;   // arrêt mini (anti-court-cycle)
+          const uint32_t SLEEP_DELAY = 45000;   // confirmation avant sleep arrosage
+          const uint32_t MAX_RUN     = 1200000; // garde-fou : 20 min max de marche
+
+          const uint32_t now = millis();
+          uint32_t elapsed = now - id(state_since_ms);
+
+          // SÉCURITÉ — communication D12 vivante ?
+          // Les registres Modbus bruts sont NaN si le D12 ne répond pas.
+          // (NB : le capteur "Pressure" renvoie 0.00 et non NaN hors-ligne,
+          //  donc on ne peut PAS s'y fier pour détecter l'absence de bus.)
+          if (isnan(id(pid_feedback).state) || isnan(id(output_frequency).state)) {
+            if (id(run_forward).state) id(run_forward).turn_off();
+            if (id(ctrl_state) != 0) { id(ctrl_state) = 0; id(state_since_ms) = now; }
+            return;
+          }
+
+          float P = id(pressure_sensor).state;
+          float I = id(output_current).state;
+          if (isnan(P)) return;            // pas de pression valide -> on ne fait rien
+          if (isnan(I)) I = 0.0;
+
+          float p_start    = id(num_p_start).state;
+          float p_stop     = id(num_p_stop).state;
+          float p_irrig    = id(num_p_irrig).state;
+          float f_eco      = id(num_f_eco).state;
+          float f_probe    = id(num_f_probe).state;
+          float p_classify = id(num_p_classify).state;
+          float f_min      = id(num_f_min).state;
+          float f_max      = id(num_f_max).state;
+          float i_min      = id(num_i_min).state;
+          float kp         = id(num_kp).state;
+          float ki         = id(num_ki).state;
+
+          std::string sel = id(mode_select).state;
+          if (sel.empty()) sel = "Auto";
+
+          // transition d'état
+          auto go = [&](int s){ id(ctrl_state) = s; id(state_since_ms) = now; };
+          auto pump_on  = [&](){ if (!id(run_forward).state) id(run_forward).turn_on(); };
+          auto pump_off = [&](){ if (id(run_forward).state)  id(run_forward).turn_off(); };
+
+          // OFF prioritaire, depuis n'importe quel état
+          if (sel == "Off") {
+            pump_off();
+            if (id(ctrl_state) != 0) go(0);
+            return;
+          }
+
+          switch (id(ctrl_state)) {
+
+            case 0: { // IDLE
+              pump_off();
+              if (P < p_start) {
+                if (sel == "PAC") {
+                  id(detected_mode) = 1; pump_on(); id(set_freq_hz)->execute(f_eco); go(2);
+                } else if (sel == "Arrosage") {
+                  id(detected_mode) = 2; id(pid_integral) = f_min; pump_on(); go(3);
+                } else { // Auto -> sonde
+                  pump_on(); id(set_freq_hz)->execute(f_probe); go(1);
+                }
+              }
+              break;
+            }
+
+            case 1: { // PROBE (Auto)
+              pump_on();
+              id(set_freq_hz)->execute(f_probe);
+              if (elapsed < PROBE_TIME) break;
+              // classification sur le point de fonctionnement
+              if (P >= (p_stop - 0.1) && I < i_min) {
+                pump_off(); go(4);               // pas de vrai soutirage
+              } else if (P < p_classify) {
+                id(detected_mode) = 1; go(2);    // circuit mou -> PAC
+              } else {
+                id(detected_mode) = 2; id(pid_integral) = f_max * 0.7; go(3); // raide -> arrosage
+              }
+              break;
+            }
+
+            case 2: { // RUN_PAC : fréquence éco fixe
+              pump_on();
+              id(set_freq_hz)->execute(f_eco);
+              if (sel == "Arrosage") { id(pid_integral) = f_min; go(3); break; }
+              // fin de soutirage : la pression remonte jusqu'à la cible
+              if (elapsed > MIN_ON && P >= p_stop) { pump_off(); go(4); break; }
+              if (elapsed > MAX_RUN) { pump_off(); go(4); }  // garde-fou
+              break;
+            }
+
+            case 3: { // RUN_IRRIG : PID pression + sleep
+              pump_on();
+              if (sel == "PAC") { id(detected_mode) = 1; go(2); break; }
+              float err = p_irrig - P;
+              // PI positionnel : l'intégrale porte la fréquence de base
+              id(pid_integral) += ki * err;        // dt = 1 s
+              if (id(pid_integral) > f_max) id(pid_integral) = f_max;
+              if (id(pid_integral) < f_min) id(pid_integral) = f_min;
+              float out = id(pid_integral) + kp * err;
+              if (out > f_max) out = f_max;
+              if (out < f_min) out = f_min;
+              id(set_freq_hz)->execute(out);
+              // sleep : fréquence au plancher + pression atteinte, maintenu
+              bool sleepcond = (out <= f_min + 0.5) && (P >= p_irrig * 0.98);
+              if (sleepcond) {
+                if (id(sleep_since_ms) == 0) id(sleep_since_ms) = now;
+                if (now - id(sleep_since_ms) > SLEEP_DELAY) {
+                  pump_off(); id(sleep_since_ms) = 0; go(4);
+                }
+              } else {
+                id(sleep_since_ms) = 0;
+              }
+              if (elapsed > MAX_RUN) { pump_off(); id(sleep_since_ms) = 0; go(4); }
+              break;
+            }
+
+            case 4: { // COOLDOWN : anti-court-cycle
+              pump_off();
+              if (elapsed > MIN_OFF) go(0);
+              break;
+            }
+
+            default: go(0);
+          }
+
+# ---------- Diagnostics exposés à Home Assistant ----------
+text_sensor:
+  - platform: template
+    name: "DM État"
+    id: dm_state_text
+    icon: mdi:state-machine
+    update_interval: 2s
+    lambda: |-
+      switch (id(ctrl_state)) {
+        case 0: return {"Repos"};
+        case 1: return {"Détection"};
+        case 2: return {"PAC (éco)"};
+        case 3: return {"Arrosage (PID)"};
+        case 4: return {"Anti-court-cycle"};
+      }
+      return {"?"};
+
+  - platform: template
+    name: "DM Mode détecté"
+    id: dm_mode_text
+    icon: mdi:water-pump
+    update_interval: 2s
+    lambda: |-
+      switch (id(detected_mode)) {
+        case 1: return {"PAC"};
+        case 2: return {"Arrosage"};
+      }
+      return {"Indéterminé"};

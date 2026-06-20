@@ -7,6 +7,11 @@ substitutions:
 esphome:
   name: ${device_name}
 
+# Double-mode PAC (économie) / Arrosage (PID) avec détection hydraulique auto.
+# Voir dual-mode-control.yaml. Commenter cette ligne pour désactiver.
+packages:
+  dual_mode: !include dual-mode-control.yaml
+
 esp8266:
   board: d1_mini
 
@@ -27,6 +32,7 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  min_auth_mode: WPA2
 
   # Enable fallback hotspot
   ap:
