@@ -48,6 +48,6 @@
 <text x="484" y="342" font-size="12" font-weight="700" fill="#9a3412">⚠ Sécurité — depuis tout état</text>
 <text x="484" y="364" font-size="11" fill="#1f2933">Perte de communication D12 (registres Modbus = NaN)</text>
 <text x="484" y="382" font-size="11" fill="#1f2933">⇒ pompe OFF + retour Repos.</text>
-<text x="484" y="400" font-size="11" fill="#1f2933">« Pressure » vaut 0.00 (pas NaN) hors-ligne : la garde teste</text>
-<text x="484" y="418" font-size="11" fill="#1f2933">les registres bruts pid_feedback / output_frequency.</text>
+<text x="484" y="400" font-size="11" fill="#1f2933">La garde teste les registres bruts</text>
+<text x="484" y="418" font-size="11" fill="#1f2933">aci_input (0x2108) / output_frequency.</text>
 </svg>

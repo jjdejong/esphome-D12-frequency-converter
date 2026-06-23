@@ -9,6 +9,11 @@ Complete ESPHome configuration for monitoring and controlling a D12 Series Frequ
 > See **[doc/DUAL-MODE.md](doc/DUAL-MODE.md)** for the full description, state machine and
 > use-case timing diagrams.
 
+The heat-pump "demand" signal is deliberately not used as a direct pump-start command:
+it also controls the exchanger valve during the heat pump power-on purge. The restored
+external start condition is the pressostat low-threshold contact; mode detection remains
+hydraulic.
+
 ## Hardware Requirements
 
 1. **Wemos D1 Mini** (ESP8266)
@@ -58,9 +63,11 @@ Before using this ESPHome configuration, configure the D12 VFD parameters:
 | Parameter | Name | Recommended Value | Description |
 |-----------|------|-------------------|-------------|
 | P6.00 | Local Address | 1 | Modbus slave address (1-247) |
-| P6.01 | Communication Config | 0001 | 19200 baud, no parity |
-| P6.02 | Timeout | 10.0s | Communication timeout |
+| P6.01 | Communication Config | **0000** | **9600 baud** (the only rate this VFD supports), no parity |
+| P6.02 | Timeout | 10.0s | Communication timeout (0 disables) |
 | P6.03 | Response Delay | 5ms | Response delay time |
+
+> ⚠️ The **ZT-D12-220V** firmware supports **9600 bps only** — `P6.01` ones digit `1`/`2` are *reserved*, **not** 19200/38400. The ESPHome `uart: baud_rate` must be **9600** to match.
 
 ### Run Control Parameters
 
@@ -70,18 +77,33 @@ Before using this ESPHome configuration, configure the D12 VFD parameters:
 | P0.03 | Frequency Source | 6 | Set to "Communication" for ESPHome control |
 | P0.04 | Maximum Frequency | 50.0 Hz | Adjust based on your motor |
 | P0.05 | Upper Limit Frequency | 50.0 Hz | Maximum allowed frequency |
+| P0.09 | Digital Frequency Control | x0xx | Keep thousands digit `0`; the D12 internal PID overlay must not fight ESPHome's Modbus frequency command |
 
-### Optional: Baud Rate Configuration (P6.01)
+`P0.03` selects the frequency source only. It does not decide where the pressure
+sensor is wired. The manuals conflict on this frequency-source table: the older PDF
+says `P0.03 = 5` is `ACI` and `7` is pulse input, while the newer OCR addendum says
+`5` and `7` are reserved and adds `8 = MPPT`. Pressure feedback still depends on the
+PID feedback channel selected by `P3.00`.
 
-The tens digit of P6.01 controls the baud rate:
-- 0 = 9600 bps
-- 1 = 19200 bps (default)
-- 2 = 38400 bps
+### Optional: Communication Format (P6.01)
 
-The ones digit controls parity:
+P6.01 is encoded as `[thousands][hundreds][tens][ones]`.
+
+The ones digit controls the baud rate (ZT-D12-220V):
+- 0 = 9600 bps (**only supported rate**)
+- 1 = reserved
+- 2 = reserved
+
+The tens digit controls parity:
 - 0 = No parity (default)
 - 1 = Even parity
 - 2 = Odd parity
+
+The hundreds digit controls replies:
+- 0 = Normal response
+- 1 = Respond only to addressed frames
+- 2 = No response
+- 3 = No response to broadcast free-stop command
 
 ## ESPHome Setup
 
@@ -143,7 +165,8 @@ esphome run d12-frequency-converter.yaml --device d12-frequency-converter.local
 - **Jogging** - Jog mode active
 - **Forward Direction** - Running in forward direction
 - **Reverse Direction** - Running in reverse direction
-- **Overload Warning** - Overload pre-alarm
+- **Overload** - VFD/motor overload (from fault code 0x2100)
+- **Fault** - any active fault (0x2100 ≠ 0)
 
 #### Controls
 - **Frequency Setpoint** - Number slider (-100% to 100%)
@@ -198,7 +221,17 @@ automation:
 
 ## Pressure Sensor Configuration (4-20mA Current Input)
 
-The D12 supports a 4-20mA pressure sensor via the **ACI** analog current input terminal.
+The D12 documentation is inconsistent across versions:
+
+- The older PDF and the AliExpress terminal diagrams show both `AVI` and `ACI`, and
+  define `P3.00` hundreds digit as `0 = AVI`, `1 = ACI`. In that variant, a 4-20 mA
+  pressure sensor is expected on `ACI/GND`.
+- The newer OCR addendum says the PID feedback channel is `AVI (0-10 V / 0-20 mA)`
+  and marks the old `ACI` feedback option as reserved.
+
+Do not move the pressure sensor based on `P0.03`; that parameter is only the frequency
+source. Use the PID feedback variant actually accepted by your D12, then verify that
+register `0x210E` follows real pressure.
 
 ### Hardware Connection
 
@@ -206,54 +239,39 @@ From the D12 wiring diagram (page 4):
 
 | Component | Terminal | Notes |
 |-----------|----------|-------|
-| Pressure sensor + | ACI | 4-20mA signal |
+| Pressure sensor + | ACI | 4-20mA signal (read raw from Modbus 0x2108) |
 | Pressure sensor - | GND | Common ground |
 | Sensor power | External 24V | Do NOT power from D12 |
 
 **Important**: Most 4-20mA sensors require external 24V power supply. The D12's auxiliary power outputs (+10V, +12V) are insufficient for powering the Wemos AND sensors.
 
-### D12 VFD Parameter Configuration
+### D12 / ESPHome Configuration
 
-Configure these parameters on the D12 panel or via Modbus:
+The ZT-D12-220V exposes the **raw ACI input on Modbus register `0x2108`** (value in mA ×100),
+so ESPHome reads the sensor **directly** — **no** D12-side analog scaling (`P2.04–P2.07`),
+**no** PID feedback channel (`P3.00`) and **no** `P3.18` are needed. Just:
 
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| P2.04 | 4.00 | ACI input lower limit (4mA) |
-| P2.05 | 20.00 | ACI input upper limit (20mA) |
-| P2.06 | 0.0% | ACI lower limit = 0% |
-| P2.07 | 100.0% | ACI upper limit = 100% |
-| P3.00 | x1xx | Set hundreds digit to 1 (PID feedback = ACI) |
-| P3.18 | 10.00 | Sensor range in MPa (e.g., 1.00 = 10 bar) |
+- set the board's **AI jumper to current (Cin)**;
+- wire the sensor **+ → ACI**, **− → GND**, powered from an external 24 V supply.
 
-### ESPHome Configuration
-
-In `d12-frequency-converter.yaml`, update the pressure sensor multiplier to match your sensor:
+ESPHome converts it to bar in the `Pressure` template sensor (reads `aci_input` = 0x2108):
 
 ```yaml
 lambda: |-
-  if (id(pid_feedback).state >= 0) {
-    return id(pid_feedback).state * 10.0;  // Change 10.0 to your max pressure
-  } else {
-    return 0.0;
-  }
+  const float range_bar = 10.0;  // pressure at 20 mA — set to your sensor's full scale
+  float ma = id(aci_input).state;
+  if (isnan(ma)) return NAN;
+  float p = (ma - 4.0) / 16.0 * range_bar;
+  return p > 0.0 ? p : 0.0;
 ```
 
-**Examples:**
-- 0-10 bar sensor: use `10.0`
-- 0-16 bar sensor: use `16.0`
-- 0-6 bar sensor: use `6.0`
-- 0-1 MPa sensor: use `10.0` (1 MPa = 10 bar)
+Set `range_bar` to your sensor's span (10.0 for 0-10 bar / 0-1 MPa, 16.0 for 0-16 bar).
 
 ### Testing the Pressure Sensor
 
-1. Connect sensor to ACI/GND terminals
-2. Apply 24V power to sensor
-3. Configure D12 parameters as above
-4. Upload ESPHome configuration
-5. Check Home Assistant for `sensor.d12_frequency_converter_pressure`
-6. At 4mA: should read 0.0 bar
-7. At 20mA: should read max pressure (e.g., 10.0 bar)
-8. At 12mA (middle): should read half max (e.g., 5.0 bar)
+1. Wire the sensor to **ACI/GND**, AI jumper on **Cin**, apply 24 V to the sensor
+2. Check Home Assistant for `sensor.d12_frequency_converter_pressure`
+3. At 4 mA → 0 bar; 12 mA → half scale; 20 mA → full scale
 
 ### Example Home Assistant Automation
 
@@ -300,7 +318,7 @@ automation:
 
 ### Protocol
 - **Type**: Modbus RTU
-- **Baud Rate**: 19200 bps (configurable)
+- **Baud Rate**: 9600 bps (ZT-D12-220V supports 9600 only)
 - **Data Bits**: 8
 - **Stop Bits**: 1
 - **Parity**: None
@@ -337,8 +355,9 @@ automation:
 1. **Check wiring** - Verify RS485 A/B connections are correct
 2. **Check baud rate** - Ensure ESPHome config matches VFD setting (P6.01)
 3. **Check address** - Verify modbus address matches (P6.00)
-4. **Check control source** - Set P0.02 and P0.03 to "Communication" (value 2/6)
+4. **Check response mode** - P6.01 hundreds digit must not be `2` ("no response")
 5. **RS485 polarity** - Try swapping A and B lines if no response
+6. **Check transceiver type** - A true auto-direction module needs no DE/RE pin. A manual MAX485-style module must have DE and /RE tied together and driven by ESPHome `flow_control_pin`.
 
 ### VFD Not Responding to Commands
 
@@ -426,7 +445,7 @@ sensor:
 
 - **ESPHome Documentation**: https://esphome.io
 - **Modbus Protocol**: Standard Modbus RTU
-- **D12 VFD Manual**: See `doc/D12 220V.pdf`
+- **D12 VFD Manual**: See `doc/ZT-D12-220V.pdf` (current firmware; supersedes the older `D12 220V.pdf`)
 
 ## License
 

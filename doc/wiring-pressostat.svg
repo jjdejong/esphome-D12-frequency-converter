@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 640" font-family="Segoe UI,Helvetica,Arial,sans-serif">
+<rect width="980" height="640" fill="#ffffff"/>
+<text x="40" y="34" font-size="17" font-weight="700" fill="#1f2933">Câblage : carte ESPHome (D1 mini ↔ RS485) + pressostat de sécurité → D12</text>
+<rect x="470" y="110" rx="8" width="210" height="410" fill="#dbeafe" stroke="#2563eb" stroke-width="1.6"/>
+<text x="575.0" y="128" font-size="15" font-weight="700" text-anchor="middle" fill="#1f2933">Variateur D12</text>
+<text x="575.0" y="148" font-size="10.5" text-anchor="middle" fill="#52606d">(alimenté en permanence)</text>
+<rect x="465" y="170" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="480" y="179" font-size="11" font-weight="600" fill="#1f2933">A+</text>
+<rect x="465" y="200" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="480" y="209" font-size="11" font-weight="600" fill="#1f2933">B−</text>
+<rect x="465" y="280" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="480" y="289" font-size="11" font-weight="600" fill="#1f2933">ACI</text>
+<rect x="465" y="355" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="480" y="364" font-size="11" font-weight="600" fill="#1f2933">GND</text>
+<rect x="465" y="410" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="480" y="419" font-size="11" font-weight="600" fill="#1f2933">X2</text>
+<rect x="525" y="105" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="530" y="100" font-size="11" font-weight="600" text-anchor="middle" fill="#1f2933">L</text>
+<rect x="570" y="105" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="575" y="100" font-size="11" font-weight="600" text-anchor="middle" fill="#1f2933">N</text>
+<rect x="615" y="105" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="620" y="100" font-size="11" font-weight="600" text-anchor="middle" fill="#1f2933">PE</text>
+<rect x="525" y="515" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="530" y="538" font-size="11" font-weight="600" text-anchor="middle" fill="#1f2933">U</text>
+<rect x="570" y="515" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="575" y="538" font-size="11" font-weight="600" text-anchor="middle" fill="#1f2933">V</text>
+<rect x="615" y="515" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="620" y="538" font-size="11" font-weight="600" text-anchor="middle" fill="#1f2933">W</text>
+<rect x="500" y="56" rx="8" width="150" height="44" fill="#eef1f4" stroke="#b7c0cc" stroke-width="1.6"/>
+<text x="575.0" y="74" font-size="12" font-weight="700" text-anchor="middle" fill="#1f2933">Secteur 230 V</text>
+<polyline points="530,100 530,110" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="4 3"/>
+<polyline points="575,100 575,110" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="4 3"/>
+<polyline points="620,100 620,110" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="4 3"/>
+<rect x="505" y="560" rx="8" width="150" height="46" fill="#eef1f4" stroke="#b7c0cc" stroke-width="1.6"/>
+<text x="580.0" y="578" font-size="12" font-weight="700" text-anchor="middle" fill="#1f2933">Moteur pompe</text>
+<text x="580" y="594" font-size="10.5" text-anchor="middle" fill="#52606d">(Pedrollo, sans condensateur)</text>
+<polyline points="530,520 530,560" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="4 3"/>
+<polyline points="575,520 575,560" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="4 3"/>
+<polyline points="620,520 620,560" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="4 3"/>
+<rect x="40" y="120" rx="8" width="120" height="116" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.6"/>
+<text x="100.0" y="138" font-size="12" font-weight="700" text-anchor="middle" fill="#1f2933">D1 mini</text>
+<rect x="155" y="147" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="150" y="156" font-size="11" font-weight="600" text-anchor="end" fill="#1f2933">3V3</text>
+<rect x="155" y="172" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="150" y="181" font-size="11" font-weight="600" text-anchor="end" fill="#1f2933">GND</text>
+<rect x="155" y="197" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="150" y="206" font-size="11" font-weight="600" text-anchor="end" fill="#1f2933">TX</text>
+<rect x="155" y="222" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="150" y="231" font-size="11" font-weight="600" text-anchor="end" fill="#1f2933">RX</text>
+<rect x="250" y="120" rx="8" width="140" height="116" fill="#f0fdfa" stroke="#5eead4" stroke-width="1.6"/>
+<text x="320.0" y="138" font-size="11" font-weight="700" text-anchor="middle" fill="#1f2933">Module RS485↔TTL</text>
+<text x="320" y="150" font-size="8.5" text-anchor="middle" fill="#52606d">auto-direction · 3,3 V</text>
+<rect x="245" y="157" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="260" y="166" font-size="11" font-weight="600" fill="#1f2933">VCC</text>
+<rect x="245" y="177" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="260" y="186" font-size="11" font-weight="600" fill="#1f2933">GND</text>
+<rect x="245" y="197" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="260" y="206" font-size="11" font-weight="600" fill="#1f2933">RXD</text>
+<rect x="245" y="222" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="260" y="231" font-size="11" font-weight="600" fill="#1f2933">TXD</text>
+<rect x="385" y="170" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="380" y="179" font-size="11" font-weight="600" text-anchor="end" fill="#1f2933">A+</text>
+<rect x="385" y="202" width="10" height="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="380" y="211" font-size="11" font-weight="600" text-anchor="end" fill="#1f2933">B−</text>
+<polyline points="160,152 250,162" fill="none" stroke="#0d9488" stroke-width="2.0"/>
+<polyline points="160,177 250,182" fill="none" stroke="#0d9488" stroke-width="2.0"/>
+<polyline points="160,202 250,202" fill="none" stroke="#0d9488" stroke-width="2.0"/>
+<polyline points="160,227 250,227" fill="none" stroke="#0d9488" stroke-width="2.0"/>
+<polyline points="390,175 470,175" fill="none" stroke="#0d9488" stroke-width="2.2"/>
+<polyline points="390,207 470,205" fill="none" stroke="#0d9488" stroke-width="2.2"/>
+<text x="215" y="252" font-size="9.5" text-anchor="middle" fill="#0d9488">croisé : TX (GPIO1) → RXD · RX (GPIO3) → TXD</text>
+<rect x="60" y="258" rx="8" width="180" height="74" fill="#eef1f4" stroke="#b7c0cc" stroke-width="1.6"/>
+<text x="150.0" y="276" font-size="12" font-weight="700" text-anchor="middle" fill="#1f2933">Capteur pression 4-20 mA</text>
+<text x="150" y="300" font-size="10.5" text-anchor="middle" fill="#52606d">+ → ACI · − → GND</text>
+<text x="150" y="316" font-size="10.5" text-anchor="middle" fill="#52606d">(alim. 24 V externe)</text>
+<polyline points="240,285 470,285" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="4 3"/>
+<polyline points="240,320 300,320 300,360 470,360" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="4 3"/>
+<rect x="60" y="372" rx="8" width="200" height="110" fill="#fef2f2" stroke="#f87171" stroke-width="1.6"/>
+<text x="160.0" y="392" font-size="13" font-weight="700" text-anchor="middle" fill="#dc2626">Pressostat (contact NF)</text>
+<circle cx="100" cy="430" r="4" fill="#dc2626"/>
+<circle cx="210" cy="430" r="4" fill="#dc2626"/>
+<line x1="100" y1="430" x2="210" y2="418" stroke="#dc2626" stroke-width="2"/>
+<line x1="210" y1="430" x2="210" y2="418" stroke="#dc2626" stroke-width="2"/>
+<text x="100" y="450" font-size="10" text-anchor="middle" fill="#1f2933">COM</text>
+<text x="210" y="450" font-size="10" text-anchor="middle" fill="#1f2933">NF</text>
+<text x="160.0" y="474" font-size="10" text-anchor="middle" fill="#52606d">bas 0,1 bar · haut 5,0 bar</text>
+<polyline points="100,436 100,360 300,360" fill="none" stroke="#dc2626" stroke-width="2.6"/>
+<polyline points="300,360 470,360" fill="none" stroke="#dc2626" stroke-width="2.6"/>
+<polyline points="210,436 210,415 470,415" fill="none" stroke="#dc2626" stroke-width="2.6"/>
+<circle cx="300" cy="360" r="3.5" fill="#dc2626"/>
+<rect x="700" y="150" rx="8" width="250" height="250" fill="#fff7ed" stroke="#fdba74" stroke-width="1.6"/>
+<text x="714" y="172" font-size="12.5" font-weight="700" fill="#9a3412">Pressostat = sécurité seule</text>
+<text x="714" y="194" font-size="10.6" font-weight="400" fill="#1f2933">• Contact NF entre X2 et GND.</text>
+<text x="714" y="209" font-size="10.6" font-weight="400" fill="#1f2933">• D12 : P2.14 (X2) = 9 → défaut externe.</text>
+<text x="714" y="224" font-size="10.6" font-weight="400" fill="#1f2933">  (toute entrée digitale libre convient).</text>
+<text x="714" y="239" font-size="10.6" font-weight="400" fill="#1f2933"></text>
+<text x="714" y="254" font-size="10.6" font-weight="700" fill="#1f2933">Logique :</text>
+<text x="714" y="269" font-size="10.6" font-weight="400" fill="#1f2933">• pression dans la bande → contact fermé</text>
+<text x="714" y="284" font-size="10.6" font-weight="400" fill="#1f2933">  → marche normale.</text>
+<text x="714" y="299" font-size="10.6" font-weight="400" fill="#1f2933">• hors bande (sec / surpression) →</text>
+<text x="714" y="314" font-size="10.6" font-weight="400" fill="#1f2933">  contact ouvert → D12 en défaut,</text>
+<text x="714" y="329" font-size="10.6" font-weight="400" fill="#1f2933">  arrêt moteur — indépendant de l'ESP.</text>
+<text x="714" y="344" font-size="10.6" font-weight="400" fill="#1f2933"></text>
+<text x="714" y="359" font-size="10.6" font-weight="400" fill="#1f2933">Seuils larges : 0,1 bar (bas) / 5,0 bar (haut).</text>
+<text x="714" y="374" font-size="10.6" font-weight="400" fill="#1f2933">Ne coupe PAS la puissance pompe.</text>
+<line x1="700" y1="430" x2="734" y2="430" stroke="#dc2626" stroke-width="2.6"/>
+<text x="742" y="434" font-size="11" fill="#1f2933">câblage du pressostat (à réaliser)</text>
+<line x1="700" y1="452" x2="734" y2="452" stroke="#0d9488" stroke-width="2.2"/>
+<text x="742" y="456" font-size="11" fill="#1f2933">liaison ESPHome / RS485 (à réaliser)</text>
+<line x1="700" y1="474" x2="734" y2="474" stroke="#64748b" stroke-width="1.6" stroke-dasharray="4 3"/>
+<text x="742" y="478" font-size="11" fill="#1f2933">reste du câblage (contexte)</text>
+</svg>

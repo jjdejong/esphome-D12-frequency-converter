@@ -1,0 +1,116 @@
+# =====================================================================
+# Carte Lovelace "double-mode" — légende explicite des paramètres
+# (solution SANS dépendance : explications toujours visibles à côté des
+#  réglages ; Home Assistant n'a pas de tooltip natif au survol).
+#
+# Utilisation :
+#   Tableau de bord → Modifier → Ajouter une carte → Manuel → coller ceci.
+#   (ou : Modifier le tableau de bord → éditeur YAML brut)
+#
+# ⚠️ entity_id : ceux ci-dessous sont une estimation pour le nœud
+#    "d12-frequency-converter". Les noms accentués (é) peuvent être
+#    slugifiés différemment par ESPHome. Si une ligne reste vide,
+#    corrige l'entity_id via le sélecteur d'entités de la carte.
+# =====================================================================
+
+type: vertical-stack
+cards:
+  # ---- 1. Légende (texte toujours visible, aucune dépendance) ----
+  - type: markdown
+    title: Double-mode — guide des paramètres
+    content: >
+      **Mode**
+
+      - **DM Mode** — `Auto` (détection PAC/arrosage), `PAC` (éco forcé),
+        `Arrosage` (PID forcé), `Off` (rien). Défaut après flash : `Off`.
+
+
+      **Démarrage / arrêt**
+
+      - **P start** — pression sous laquelle un cycle démarre (bar).
+
+      - **P stop** — cible de remplissage / fin de soutirage en mode PAC (bar).
+
+      - **P consigne arrosage** — consigne de pression du PID arrosage (bar).
+
+
+      **Fréquences**
+
+      - **F éco PAC** — fréquence fixe d'économie en mode PAC (Hz).
+
+      - **F sonde** — fréquence imposée pendant la phase de détection (Hz).
+
+      - **F max** — limite haute (Hz).
+
+      - **F min** — plancher de fréquence / seuil de sleep (Hz).
+
+
+      **Détection (à calibrer ⚙️)**
+
+      - **P seuil classification** ⚙️ — à `F sonde` : en dessous = PAC
+        (circuit mou), au-dessus = arrosage (circuit raide) (bar).
+
+      - **I mini débit** ⚙️ — courant minimal prouvant un vrai soutirage (A).
+
+
+      **Régulation PID arrosage**
+
+      - **PID Kp** — gain proportionnel (Hz par bar).
+
+      - **PID Ki** — gain intégral (Hz par bar.s).
+
+
+      _Temporisations figées : sonde 10 s · marche min 60 s · arrêt min 90 s ·
+      sleep 45 s · marche max 20 min._
+
+  # ---- 2. Réglages (curseurs) — vérifier/ajuster les entity_id ----
+  - type: entities
+    title: Double-mode — réglages
+    show_header_toggle: false
+    entities:
+      - entity: select.d12_frequency_converter_dm_mode
+        name: Mode
+      - type: section
+        label: Démarrage / arrêt
+      - entity: number.d12_frequency_converter_dm_p_start_marche
+        name: P start (marche)
+      - entity: number.d12_frequency_converter_dm_p_stop_arret_pac
+        name: P stop (arrêt PAC)
+      - entity: number.d12_frequency_converter_dm_p_consigne_arrosage
+        name: P consigne arrosage
+      - type: section
+        label: Fréquences
+      - entity: number.d12_frequency_converter_dm_f_eco_pac
+        name: F éco PAC
+      - entity: number.d12_frequency_converter_dm_f_sonde_detection
+        name: F sonde (détection)
+      - entity: number.d12_frequency_converter_dm_f_max
+        name: F max
+      - entity: number.d12_frequency_converter_dm_f_min_plancher_sleep
+        name: F min (plancher sleep)
+      - type: section
+        label: Détection (à calibrer)
+      - entity: number.d12_frequency_converter_dm_p_seuil_classification
+        name: P seuil classification
+      - entity: number.d12_frequency_converter_dm_i_mini_debit
+        name: I mini débit
+      - type: section
+        label: PID arrosage
+      - entity: number.d12_frequency_converter_dm_pid_kp_hz_par_bar
+        name: PID Kp
+      - entity: number.d12_frequency_converter_dm_pid_ki_hz_par_bar_s
+        name: PID Ki
+
+  # ---- 3. État courant (capteurs diagnostic) ----
+  - type: entities
+    title: Double-mode — état
+    show_header_toggle: false
+    entities:
+      - entity: sensor.d12_frequency_converter_dm_etat
+        name: État
+      - entity: sensor.d12_frequency_converter_dm_mode_detecte
+        name: Mode détecté
+      - entity: sensor.d12_frequency_converter_pressure
+        name: Pression
+      - entity: sensor.d12_frequency_converter_output_frequency
+        name: Fréquence

@@ -9,14 +9,25 @@
 # Pré-requis variateur D12 (à régler une fois) :
 #   P0.02 = 2 (Communication)  -> marche/arrêt piloté par ESPHome
 #   P0.03 = 6 (Communication)  -> fréquence pilotée par ESPHome
-#   P3.00 centaines = 1 (ACI)  -> canal feedback PID = ACI (capteur 4-20 mA)
+#   P0.09 milliers = 0          -> PID interne D12 non superposé à la consigne Modbus
+#   P3.00 centaines = canal feedback PID du capteur 4-20 mA :
+#     - ancien PDF / bornier AliExpress : 1 = ACI
+#     - OCR manuel papier plus récent : 0 = AVI, 1 = réservé
 #   P2.04=4.00 / P2.05=20.00 / P2.06=0% / P2.07=100% / P3.18=plage capteur (bar)
 #
 # ⚠️ VÉRIFICATION AU BANC AVANT TOUT :
 #   Une fois P0.03=Communication, confirmer que le capteur "Pressure"
 #   (registre 0x210E / pid_feedback) suit toujours la pression réelle.
-#   Si 0x210E se fige, garder P3.00 centaines=ACI configuré ; si toujours
-#   figé, la détection hydraulique n'est pas possible via Modbus seul.
+#   Ne pas déduire le bornier du capteur de P0.03 : P0.03 règle la source
+#   de fréquence, pas le retour pression. Si 0x210E se fige, essayer l'autre
+#   variante P3.00/borne documentée avant de conclure.
+#
+# ⚠️ DEMANDE PAC :
+#   Ne pas utiliser le signal "demande PAC" brut comme ordre direct de
+#   démarrage pompe : il pilote aussi la vanne échangeur pendant la purge
+#   à la mise sous tension. La condition externe restaurée côté pompe est
+#   le contact seuil bas du pressostat ; la détection PAC/arrosage reste
+#   hydraulique.
 #
 # ⚠️ SÉCURITÉ : le pressostat mécanique (seuils larges 0,1 / 5,0 bar) doit
 #   rester câblé sur l'entrée "External fault" du D12 (registre 0x2002 /
@@ -33,6 +44,7 @@ number:
   - platform: template
     name: "DM P start (marche)"
     id: num_p_start
+    entity_category: config
     unit_of_measurement: "bar"
     optimistic: true
     restore_value: true
@@ -45,6 +57,7 @@ number:
   - platform: template
     name: "DM P stop (arrêt PAC)"
     id: num_p_stop
+    entity_category: config
     unit_of_measurement: "bar"
     optimistic: true
     restore_value: true
@@ -57,6 +70,7 @@ number:
   - platform: template
     name: "DM P consigne arrosage"
     id: num_p_irrig
+    entity_category: config
     unit_of_measurement: "bar"
     optimistic: true
     restore_value: true
@@ -69,6 +83,7 @@ number:
   - platform: template
     name: "DM F éco PAC"
     id: num_f_eco
+    entity_category: config
     unit_of_measurement: "Hz"
     optimistic: true
     restore_value: true
@@ -81,6 +96,7 @@ number:
   - platform: template
     name: "DM F sonde (détection)"
     id: num_f_probe
+    entity_category: config
     unit_of_measurement: "Hz"
     optimistic: true
     restore_value: true
@@ -95,6 +111,7 @@ number:
   - platform: template
     name: "DM P seuil classification"
     id: num_p_classify
+    entity_category: config
     unit_of_measurement: "bar"
     optimistic: true
     restore_value: true
@@ -108,6 +125,7 @@ number:
   - platform: template
     name: "DM I mini débit"
     id: num_i_min
+    entity_category: config
     unit_of_measurement: "A"
     optimistic: true
     restore_value: true
@@ -120,6 +138,7 @@ number:
   - platform: template
     name: "DM F max"
     id: num_f_max
+    entity_category: config
     unit_of_measurement: "Hz"
     optimistic: true
     restore_value: true
@@ -132,6 +151,7 @@ number:
   - platform: template
     name: "DM F min (plancher sleep)"
     id: num_f_min
+    entity_category: config
     unit_of_measurement: "Hz"
     optimistic: true
     restore_value: true
@@ -144,6 +164,7 @@ number:
   - platform: template
     name: "DM PID Kp (Hz par bar)"
     id: num_kp
+    entity_category: config
     optimistic: true
     restore_value: true
     initial_value: 8.0
@@ -155,6 +176,7 @@ number:
   - platform: template
     name: "DM PID Ki (Hz par bar.s)"
     id: num_ki
+    entity_category: config
     optimistic: true
     restore_value: true
     initial_value: 2.0
@@ -241,10 +263,10 @@ interval:
           uint32_t elapsed = now - id(state_since_ms);
 
           // SÉCURITÉ — communication D12 vivante ?
-          // Les registres Modbus bruts sont NaN si le D12 ne répond pas.
-          // (NB : le capteur "Pressure" renvoie 0.00 et non NaN hors-ligne,
-          //  donc on ne peut PAS s'y fier pour détecter l'absence de bus.)
-          if (isnan(id(pid_feedback).state) || isnan(id(output_frequency).state)) {
+          // On teste les registres Modbus BRUTS (NaN si le D12 ne répond pas) :
+          // aci_input (0x2108, source de la pression) et output_frequency (0x2103).
+          // On ne se fie PAS au capteur dérivé "Pressure" comme indicateur de bus.
+          if (isnan(id(aci_input).state) || isnan(id(output_frequency).state)) {
             if (id(run_forward).state) id(run_forward).turn_off();
             if (id(ctrl_state) != 0) { id(ctrl_state) = 0; id(state_since_ms) = now; }
             return;
@@ -267,7 +289,7 @@ interval:
           float kp         = id(num_kp).state;
           float ki         = id(num_ki).state;
 
-          std::string sel = id(mode_select).state;
+          std::string sel = id(mode_select).current_option();
           if (sel.empty()) sel = "Auto";
 
           // transition d'état
@@ -363,6 +385,7 @@ text_sensor:
   - platform: template
     name: "DM État"
     id: dm_state_text
+    entity_category: diagnostic
     icon: mdi:state-machine
     update_interval: 2s
     lambda: |-
@@ -378,6 +401,7 @@ text_sensor:
   - platform: template
     name: "DM Mode détecté"
     id: dm_mode_text
+    entity_category: diagnostic
     icon: mdi:water-pump
     update_interval: 2s
     lambda: |-

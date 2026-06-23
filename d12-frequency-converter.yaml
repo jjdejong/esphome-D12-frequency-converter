@@ -17,7 +17,7 @@ esp8266:
 
 # Enable logging
 logger:
-  level: DEBUG
+  level: DEBUG  # TEMP diagnostic: keep raw UART frames without API VERY_VERBOSE noise
   baud_rate: 0  # Disable UART logging to avoid conflicts with Modbus
 
 # Enable Home Assistant API
@@ -44,11 +44,18 @@ captive_portal:
 # Configure UART for RS485
 uart:
   id: mod_bus
-  tx_pin: GPIO1  # TX pin (D10 on D1 mini)
-  rx_pin: GPIO3  # RX pin (D9 on D1 mini)
-  baud_rate: 19200
-  stop_bits: 1
+  tx_pin: GPIO1  # TX (borne TX du Wemos)
+  rx_pin: GPIO3  # RX (borne RX du Wemos)
+  baud_rate: 9600  # ZT-D12-220V supports 9600 ONLY (P6.01 ones digit: 0=9600, 1/2 reserved). Set D12 P6.01=0000.
+  stop_bits: 1  # D12 manual RTU frame: 8 data bits, no parity, 1 stop bit
   parity: NONE
+  debug:           # TEMP diagnostic: log raw TX/RX bytes
+    direction: BOTH
+    dummy_receiver: false
+    after:
+      timeout: 50ms
+    sequence:
+      - lambda: UARTDebug::log_hex(direction, bytes, ':');
   # Auto-direction RS485 module (3.3 V), TTL header crossed:
   # - module RXD <- GPIO1 (ESP TX)
   # - module TXD -> GPIO3 (ESP RX)
@@ -70,6 +77,8 @@ modbus_controller:
 
 # ===== SENSORS (Read-only monitoring) =====
 sensor:
+  # The D12 manual lists sparse 0x210x status registers. Some units silently ignore
+  # grouped reads that cross unsupported gaps, so keep telemetry reads independent.
   # Output Frequency (Hz)
   - platform: modbus_controller
     modbus_controller_id: d12_vfd
@@ -77,6 +86,7 @@ sensor:
     id: output_frequency
     register_type: holding
     address: 0x2103
+    force_new_range: true
     unit_of_measurement: "Hz"
     device_class: frequency
     state_class: measurement
@@ -91,6 +101,7 @@ sensor:
     id: set_frequency
     register_type: holding
     address: 0x2102
+    force_new_range: true
     unit_of_measurement: "Hz"
     device_class: frequency
     state_class: measurement
@@ -105,6 +116,7 @@ sensor:
     id: output_current
     register_type: holding
     address: 0x2104
+    force_new_range: true
     unit_of_measurement: "A"
     device_class: current
     state_class: measurement
@@ -119,6 +131,7 @@ sensor:
     id: bus_voltage
     register_type: holding
     address: 0x2105
+    force_new_range: true
     unit_of_measurement: "V"
     device_class: voltage
     state_class: measurement
@@ -131,6 +144,7 @@ sensor:
     id: output_voltage
     register_type: holding
     address: 0x2106
+    force_new_range: true
     unit_of_measurement: "V"
     device_class: voltage
     state_class: measurement
@@ -144,6 +158,7 @@ sensor:
     id: module_temperature
     register_type: holding
     address: 0x210D
+    force_new_range: true
     unit_of_measurement: "°C"
     device_class: temperature
     state_class: measurement
@@ -159,6 +174,7 @@ sensor:
     id: pid_feedback
     register_type: holding
     address: 0x210E
+    force_new_range: true
     state_class: measurement
     accuracy_decimals: 2
     internal: true  # Hide raw value, use pressure sensor instead
@@ -172,19 +188,33 @@ sensor:
     id: pid_setpoint
     register_type: holding
     address: 0x210F
+    force_new_range: true
     state_class: measurement
     accuracy_decimals: 2
     filters:
       - multiply: 0.01
 
-  # Pressure Sensor (4-20mA current input via ACI terminal)
-  # IMPORTANT: Configure D12 VFD parameters first:
-  #   P2.04 = 4.00 (ACI input lower limit, 4mA)
-  #   P2.05 = 20.00 (ACI input upper limit, 20mA)
-  #   P2.06 = 0.0% (ACI lower limit corresponding setting)
-  #   P2.07 = 100.0% (ACI upper limit corresponding setting)
-  #   P3.00 hundreds digit = 1 (PID feedback input channel = ACI)
-  #   P3.18 = your sensor's max range in MPa (e.g., 1.00 for 0-1 MPa sensor)
+  # Raw ACI analog input in mA (ZT-D12-220V manual, register 0x2108).
+  # Reads the 4-20mA pressure sensor DIRECTLY — no PID feedback channel (P3.00)
+  # and no P2.04-P2.07 scaling needed. Just wire the sensor to ACI/GND and set the
+  # board's AI jumper to current (Cin).
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "ACI Input"
+    id: aci_input
+    register_type: holding
+    address: 0x2108
+    force_new_range: true
+    unit_of_measurement: "mA"
+    state_class: measurement
+    accuracy_decimals: 2
+    internal: true
+    filters:
+      - multiply: 0.01   # raw value is mA x100 -> mA
+
+  # Pressure from the 4-20mA sensor on ACI (register 0x2108).
+  # 4 mA = 0 bar, 20 mA = full scale. Set range_bar to your sensor's span
+  # (10.0 for a 0-10 bar / 0-1 MPa sensor).
   - platform: template
     name: "Pressure"
     id: pressure_sensor
@@ -194,16 +224,11 @@ sensor:
     accuracy_decimals: 2
     icon: mdi:gauge
     lambda: |-
-      // Convert PID feedback percentage to pressure
-      // Adjust the multiplier (10.0) to match your sensor range
-      // Example: For 0-10 bar sensor, use 10.0
-      //          For 0-16 bar sensor, use 16.0
-      //          For 0-1 MPa sensor (=10 bar), use 10.0
-      if (id(pid_feedback).state >= 0) {
-        return id(pid_feedback).state * 10.0;  // Change 10.0 to your sensor's max pressure
-      } else {
-        return 0.0;
-      }
+      const float range_bar = 10.0;  // pressure at 20 mA — change to your sensor's full scale
+      float ma = id(aci_input).state;
+      if (isnan(ma)) return NAN;      // D12 offline -> unavailable (not a fake 0)
+      float p = (ma - 4.0) / 16.0 * range_bar;
+      return p > 0.0 ? p : 0.0;
     update_interval: 2s
 
   # Pressure Setpoint (converted from PID setpoint)
@@ -232,8 +257,21 @@ sensor:
     id: status_word
     register_type: holding
     address: 0x2101
+    force_new_range: true
     internal: true
     skip_updates: 10
+
+  # Fault code (register 0x2100) — 0 normal, 1 module, 2 overvolt, 3 temp,
+  # 4 VFD overload, 5 motor overload, 6 external, 10-12 overcurrent, 14 undervolt
+  - platform: modbus_controller
+    modbus_controller_id: d12_vfd
+    name: "Fault Code"
+    id: fault_code
+    register_type: holding
+    address: 0x2100
+    force_new_range: true
+    internal: true
+    skip_updates: 5
 
   # Power Calculation (approximation: V * I * sqrt(3) for 3-phase)
   - platform: template
@@ -293,13 +331,23 @@ binary_sensor:
     lambda: |-
       return ((int)id(status_word).state & 0x0010) != 0;
 
-  # Overload Pre-alarm (BIT10)
+  # Overload — read from the fault code 0x2100 (4 = VFD overload, 5 = motor overload).
+  # NB: status-word Bit10 is "Communication operation command", NOT overload (ZT-D12 manual).
   - platform: template
-    name: "Overload Warning"
+    name: "Overload"
     id: overload_warning
     device_class: problem
     lambda: |-
-      return ((int)id(status_word).state & 0x0400) != 0;
+      int f = (int)id(fault_code).state;
+      return (f == 4 || f == 5);
+
+  # Any active fault (0x2100 != 0)
+  - platform: template
+    name: "Fault"
+    device_class: problem
+    lambda: |-
+      if (isnan(id(fault_code).state)) return false;
+      return ((int)id(fault_code).state) != 0;
 
   # Status
   - platform: status
@@ -514,11 +562,12 @@ select:
       "Panel Potentiometer": 0
       "Digital Reference 1": 1
       "Digital Reference 2": 2
-      "Analog AVI": 3
+      "Analog AVI (0-10V/0-20mA)": 3
       "Combination": 4
-      "Analog ACI": 5
+      "Analog ACI / Reserved": 5
       "Communication": 6
-      "Pulse": 7
+      "Pulse / Reserved": 7
+      "MPPT (newer OCR)": 8
 
 # ===== CONFIGURATION PARAMETERS =====
 # You can add more parameter controls as needed:
